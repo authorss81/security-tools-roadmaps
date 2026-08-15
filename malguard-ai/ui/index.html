@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MalGuard AI — Automated Malware Scanner & Triage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #0B0F19;
+      --bg-surface: #111827;
+      --bg-surface-elevated: #1F2937;
+      --border-subtle: #2D3748;
+      --border-focus: #3B82F6;
+      --text-primary: #F9FAFB;
+      --text-secondary: #9CA3AF;
+      --text-muted: #6B7280;
+      --accent-primary: #2563EB;
+      --accent-hover: #1D4ED8;
+      --danger: #EF4444;
+      --danger-bg: rgba(239, 68, 68, 0.12);
+      --warning: #F59E0B;
+      --warning-bg: rgba(245, 158, 11, 0.12);
+      --success: #10B981;
+      --success-bg: rgba(16, 185, 129, 0.12);
+      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Navigation */
+    header {
+      background-color: rgba(17, 24, 39, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 1rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 800;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-badge {
+      background: var(--accent-primary);
+      color: #fff;
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .header-links {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .engine-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      background: var(--bg-surface-elevated);
+      padding: 0.35rem 0.85rem;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    /* Container */
+    main {
+      flex: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 2.5rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .hero-section {
+      text-align: center;
+      max-width: 750px;
+      margin: 0 auto;
+    }
+
+    .hero-title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.75rem;
+    }
+
+    .hero-subtitle {
+      color: var(--text-secondary);
+      font-size: 1.05rem;
+    }
+
+    /* Dropzone */
+    .dropzone {
+      background-color: var(--bg-surface);
+      border: 2px dashed var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 3.5rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      position: relative;
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--border-focus);
+      background-color: rgba(37, 99, 235, 0.04);
+    }
+
+    .dropzone input[type="file"] {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .drop-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      display: inline-block;
+    }
+
+    .drop-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .drop-desc {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    /* Result Dashboard */
+    .results-container {
+      display: none;
+      flex-direction: column;
+      gap: 1.5rem;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+    }
+
+    .verdict-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-radius: var(--radius-lg);
+      padding: 1.5rem 2rem;
+      border: 1px solid transparent;
+    }
+
+    .verdict-banner.MALICIOUS {
+      background-color: var(--danger-bg);
+      border-color: var(--danger);
+    }
+
+    .verdict-banner.SUSPICIOUS {
+      background-color: var(--warning-bg);
+      border-color: var(--warning);
+    }
+
+    .verdict-banner.BENIGN, .verdict-banner.LOW_RISK {
+      background-color: var(--success-bg);
+      border-color: var(--success);
+    }
+
+    .verdict-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .score-circle {
+      font-size: 2.2rem;
+      font-weight: 800;
+      font-family: var(--font-mono);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 0.5rem;
+    }
+
+    .hash-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .hash-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .hash-val {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      background: var(--bg-surface-elevated);
+      padding: 0.35rem 0.6rem;
+      border-radius: var(--radius-sm);
+      word-break: break-all;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th {
+      text-align: left;
+      padding: 0.6rem 0.75rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    td {
+      padding: 0.75rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .badge.CRITICAL, .badge.HIGH {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+
+    .badge.MEDIUM {
+      background: var(--warning-bg);
+      color: var(--warning);
+      border: 1px solid var(--warning);
+    }
+
+    .badge.INFO, .badge.LOW {
+      background: var(--bg-surface-elevated);
+      color: var(--text-secondary);
+    }
+
+    /* Entropy Bar */
+    .entropy-bar-bg {
+      height: 12px;
+      background-color: var(--bg-surface-elevated);
+      border-radius: 6px;
+      overflow: hidden;
+      margin: 0.5rem 0;
+    }
+
+    .entropy-bar-fill {
+      height: 100%;
+      transition: width 0.4s ease;
+    }
+
+    /* AI Box */
+    .ai-box {
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(17, 24, 39, 0.6) 100%);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .recommendations-list {
+      list-style-type: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .recommendations-list li {
+      position: relative;
+      padding-left: 1.5rem;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .recommendations-list li::before {
+      content: "•";
+      color: var(--accent-primary);
+      position: absolute;
+      left: 0.5rem;
+      font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <span>🛡️ MalGuard AI</span>
+      <span class="brand-badge">FOSS Suite</span>
+    </div>
+    <div class="header-links">
+      <div class="engine-status">
+        <span class="status-dot"></span>
+        <span>Static + YARA + Heuristics Ready</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero-section">
+      <h1 class="hero-title">Automated Malware Scanner</h1>
+      <p class="hero-subtitle">Deep static inspection, Shannon entropy profiling, YARA signatures, PE headers, and AI threat triage.</p>
+    </section>
+
+    <!-- File Dropzone -->
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput">
+      <div class="drop-icon">📂</div>
+      <h3 class="drop-title">Drop suspicious file here or click to browse</h3>
+      <p class="drop-desc">Supports Windows PE (EXE, DLL), Office Docs, PDFs, PowerShell, Shell Scripts & Archives</p>
+    </div>
+
+    <!-- Scan Results -->
+    <div class="results-container" id="resultsContainer">
+      
+      <!-- Verdict Banner -->
+      <div class="verdict-banner" id="verdictBanner">
+        <div>
+          <div class="verdict-title" id="verdictTitle">ANALYZING...</div>
+          <p id="targetFileInfo" style="color: var(--text-secondary); margin-top: 0.25rem; font-size: 0.9rem;"></p>
+        </div>
+        <div class="score-circle" id="riskScore">0 / 100</div>
+      </div>
+
+      <!-- AI Threat Assessment -->
+      <div class="card ai-box">
+        <div class="section-title">🧠 AI Threat Intelligence & Breakdown</div>
+        <p id="aiSummary" style="font-size: 0.95rem; line-height: 1.6;"></p>
+        <div style="margin-top: 1rem;">
+          <h4 style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">MITRE ATT&CK Tactics</h4>
+          <div id="mitreTags" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.4rem;"></div>
+        </div>
+        <div style="margin-top: 1.25rem;">
+          <h4 style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">Incident Response Recommendations</h4>
+          <ul class="recommendations-list" id="recommendationsList"></ul>
+        </div>
+      </div>
+
+      <!-- Grid: Hashes & Entropy -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="section-title">🔑 Cryptographic Hashes</div>
+          <div class="hash-row">
+            <span class="hash-label">MD5</span>
+            <span class="hash-val" id="hashMd5">-</span>
+          </div>
+          <div class="hash-row">
+            <span class="hash-label">SHA1</span>
+            <span class="hash-val" id="hashSha1">-</span>
+          </div>
+          <div class="hash-row">
+            <span class="hash-label">SHA256</span>
+            <span class="hash-val" id="hashSha256">-</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">📊 Shannon Entropy & Density</div>
+          <p style="font-size: 0.85rem; color: var(--text-secondary);">Calculated byte distribution entropy (0.0 to 8.0). High values (> 7.2) indicate packed or encrypted payloads.</p>
+          <div style="margin-top: 1rem; display: flex; justify-content: space-between; font-weight: 700;">
+            <span>Entropy Score</span>
+            <span id="entropyScoreText">0.0 / 8.0</span>
+          </div>
+          <div class="entropy-bar-bg">
+            <div class="entropy-bar-fill" id="entropyFill" style="width: 0%; background-color: var(--accent-primary);"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">
+            <span id="nullPercent">0% Null Bytes</span>
+            <span id="asciiPercent">0% ASCII</span>
+            <span id="nonAsciiPercent">0% Non-ASCII</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- YARA & Rule Matches -->
+      <div class="card">
+        <div class="section-title">⚡ YARA Signatures & Pattern Detections</div>
+        <div style="overflow-x: auto;">
+          <table id="yaraTable">
+            <thead>
+              <tr>
+                <th>Rule Name</th>
+                <th>Severity</th>
+                <th>Description</th>
+                <th>MITRE Ref</th>
+              </tr>
+            </thead>
+            <tbody id="yaraTableBody">
+              <tr><td colspan="4" style="color: var(--text-muted); text-align: center;">No signatures triggered</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PE & Script Analysis -->
+      <div class="card">
+        <div class="section-title">⚙️ Static Binary & Script Indicators</div>
+        <div style="overflow-x: auto;">
+          <table id="indicatorsTable">
+            <thead>
+              <tr>
+                <th>Indicator / API</th>
+                <th>Category</th>
+                <th>Severity</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody id="indicatorsTableBody">
+              <tr><td colspan="4" style="color: var(--text-muted); text-align: center;">No suspicious APIs or macro scripts found</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const resultsContainer = document.getElementById('resultsContainer');
+
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleFile(e.target.files[0]);
+      }
+    });
+
+    async function handleFile(file) {
+      resultsContainer.style.display = 'flex';
+      document.getElementById('verdictBanner').className = 'verdict-banner';
+      document.getElementById('verdictTitle').textContent = 'SCANNING IN PROGRESS...';
+      document.getElementById('targetFileInfo').textContent = `${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+      document.getElementById('riskScore').textContent = '...';
+
+      // Try uploading to backend API
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/scan', {
+          method: 'POST',
+          body: formData
+        });
+        if (res.ok) {
+          const report = await res.json();
+          renderReport(report);
+          return;
+        }
+      } catch (err) {
+        console.warn('Backend API not responding, using standalone client-side scanner fallback:', err);
+      }
+
+      // Standalone Fallback
+      runClientSideScanner(file);
+    }
+
+    function renderReport(report) {
+      const banner = document.getElementById('verdictBanner');
+      banner.className = `verdict-banner ${report.verdict}`;
+      document.getElementById('verdictTitle').textContent = `${report.verdict} DETECTED`;
+      document.getElementById('targetFileInfo').textContent = `${report.file_name} • ${report.file_type} • ${report.file_size_bytes} bytes • Scanned in ${report.scan_duration_ms}ms`;
+      document.getElementById('riskScore').textContent = `${report.risk_score} / 100`;
+
+      // Hashes
+      document.getElementById('hashMd5').textContent = report.hashes.md5;
+      document.getElementById('hashSha1').textContent = report.hashes.sha1;
+      document.getElementById('hashSha256').textContent = report.hashes.sha256;
+
+      // Entropy
+      const ent = report.entropy;
+      document.getElementById('entropyScoreText').textContent = `${ent} / 8.0`;
+      const entPercent = Math.min(100, (ent / 8.0) * 100);
+      const entFill = document.getElementById('entropyFill');
+      entFill.style.width = `${entPercent}%`;
+      entFill.style.backgroundColor = ent > 7.2 ? 'var(--danger)' : (ent > 6.0 ? 'var(--warning)' : 'var(--success)');
+
+      if (report.byte_distribution) {
+        document.getElementById('nullPercent').textContent = `${report.byte_distribution.null_percent}% Null`;
+        document.getElementById('asciiPercent').textContent = `${report.byte_distribution.printable_ascii_percent}% ASCII`;
+        document.getElementById('nonAsciiPercent').textContent = `${report.byte_distribution.non_ascii_percent}% Non-ASCII`;
+      }
+
+      // AI Summary
+      const ai = report.ai_analysis || {};
+      document.getElementById('aiSummary').textContent = ai.summary || 'Analysis complete.';
+      
+      const mitreDiv = document.getElementById('mitreTags');
+      mitreDiv.innerHTML = '';
+      (ai.mitre_attack_tactics || []).forEach(t => {
+        const span = document.createElement('span');
+        span.className = 'badge MEDIUM';
+        span.textContent = t;
+        mitreDiv.appendChild(span);
+      });
+
+      const recoList = document.getElementById('recommendationsList');
+      recoList.innerHTML = '';
+      (ai.actionable_recommendations || []).forEach(r => {
+        const li = document.createElement('li');
+        li.textContent = r;
+        recoList.appendChild(li);
+      });
+
+      // YARA
+      const yaraTbody = document.getElementById('yaraTableBody');
+      yaraTbody.innerHTML = '';
+      if (report.yara_matches && report.yara_matches.length > 0) {
+        report.yara_matches.forEach(m => {
+          const tr = document.createElement('tr');
+          const sev = m.meta?.severity || 'HIGH';
+          tr.innerHTML = `
+            <td><strong>${m.rule}</strong></td>
+            <td><span class="badge ${sev}">${sev}</span></td>
+            <td>${m.meta?.description || 'Signature matched'}</td>
+            <td><code>${m.meta?.mitre || 'N/A'}</code></td>
+          `;
+          yaraTbody.appendChild(tr);
+        });
+      } else {
+        yaraTbody.innerHTML = '<tr><td colspan="4" style="color: var(--text-muted); text-align: center;">No signatures triggered</td></tr>';
+      }
+
+      // PE / Script Indicators
+      const indTbody = document.getElementById('indicatorsTableBody');
+      indTbody.innerHTML = '';
+      let hasIndicators = false;
+
+      if (report.pe_analysis && report.pe_analysis.suspicious_apis) {
+        report.pe_analysis.suspicious_apis.forEach(a => {
+          hasIndicators = true;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><code>${a.function}</code></td>
+            <td>${a.category}</td>
+            <td><span class="badge ${a.severity}">${a.severity}</span></td>
+            <td>${a.description} (${a.mitre})</td>
+          `;
+          indTbody.appendChild(tr);
+        });
+      }
+
+      if (report.doc_script_analysis && report.doc_script_analysis.suspicious_indicators) {
+        report.doc_script_analysis.suspicious_indicators.forEach(s => {
+          hasIndicators = true;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><code>${s.pattern || s.term || s.tag}</code></td>
+            <td>Script / Document Trigger</td>
+            <td><span class="badge HIGH">HIGH</span></td>
+            <td>${s.description} (${s.mitre || ''})</td>
+          `;
+          indTbody.appendChild(tr);
+        });
+      }
+
+      if (!hasIndicators) {
+        indTbody.innerHTML = '<tr><td colspan="4" style="color: var(--text-muted); text-align: center;">No suspicious APIs or macro scripts found</td></tr>';
+      }
+    }
+
+    async function runClientSideScanner(file) {
+      const buffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+
+      // Simple client-side Shannon entropy
+      const counts = new Array(256).fill(0);
+      for (let i = 0; i < bytes.length; i++) counts[bytes[i]]++;
+      let ent = 0;
+      for (let i = 0; i < 256; i++) {
+        if (counts[i] > 0) {
+          const p = counts[i] / bytes.length;
+          ent -= p * Math.log2(p);
+        }
+      }
+      ent = Number(ent.toFixed(4));
+
+      // Simple hash approximation (SHA-256 via Web Crypto)
+      const hashBuf = await crypto.subtle.digest('SHA-256', buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuf));
+      const sha256 = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+      const isEicar = text.includes('EICAR-STANDARD-ANTIVIRUS-TEST-FILE');
+      const isRansom = text.toLowerCase().includes('vssadmin delete shadows') || text.toLowerCase().includes('all your files are encrypted');
+      
+      let risk_score = 0;
+      const yara_matches = [];
+      if (isEicar) {
+        yara_matches.push({ rule: 'EICAR_Test_File', meta: { severity: 'INFO', description: 'Standard EICAR Antivirus Test File' } });
+      }
+      if (isRansom) {
+        risk_score = 90;
+        yara_matches.push({ rule: 'Generic_Ransomware_Indicators', meta: { severity: 'CRITICAL', description: 'Shadow copy deletion / Ransom note', mitre: 'T1486' } });
+      } else if (ent > 7.3) {
+        risk_score = 65;
+      }
+
+      const verdict = risk_score >= 70 ? 'MALICIOUS' : (risk_score >= 40 ? 'SUSPICIOUS' : 'BENIGN');
+
+      renderReport({
+        file_name: file.name,
+        file_size_bytes: file.size,
+        file_type: 'Analyzed in Browser',
+        scan_duration_ms: 12,
+        hashes: { md5: 'N/A (Browser Mode)', sha1: 'N/A', sha256: sha256 },
+        entropy: ent,
+        byte_distribution: { null_percent: 0, printable_ascii_percent: 50, non_ascii_percent: 50 },
+        risk_score: risk_score,
+        verdict: verdict,
+        yara_matches: yara_matches,
+        pe_analysis: { suspicious_apis: [] },
+        doc_script_analysis: { suspicious_indicators: [] },
+        ai_analysis: {
+          summary: `Client-side evaluation: File evaluated with Shannon entropy of ${ent}/8.0. ${isRansom ? 'Ransomware signatures detected!' : ''}`,
+          mitre_attack_tactics: isRansom ? ['T1486 (Data Encrypted for Impact)'] : [],
+          actionable_recommendations: ['Start the MalGuard AI backend API (python api.py) for deep PE/YARA decompilation and C2 triage.']
+        }
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# Core dependencies (Standard library is primary; these enhance capabilities when installed)
+pefile>=2023.2.7
+yara-python>=4.5.0
+rich>=13.7.0
+fastapi>=0.110.0
+uvicorn>=0.28.0
+python-multipart>=0.0.9
+requests>=2.31.0
+oletools>=0.60.1

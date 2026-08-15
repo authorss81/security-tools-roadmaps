@@ -1,0 +1,3 @@
+This is a completely clean, harmless text file for testing MalGuard AI malware scanner.
+No suspicious APIs, no ransomware strings, and standard printable ASCII entropy.
+All checks should pass as BENIGN.

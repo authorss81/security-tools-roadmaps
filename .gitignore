@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.quarantine
+quarantine_vault/
+.env
+.venv
+env/
+venv/
+*.log
+.DS_Store
+Thumbs.db
